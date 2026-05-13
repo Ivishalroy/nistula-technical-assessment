@@ -5,6 +5,7 @@ from app.schemas.response_schema import MessageResponse
 
 from app.services.normalizer import normalize_message
 from app.services.classifier import classify_query
+from app.prompts.guest_reply_prompt import build_guest_prompt
 
 router = APIRouter()
 
@@ -20,6 +21,13 @@ def receive_message(payload: IncomingMessage):
     query_type = classify_query(
         normalized_message["message_text"]
     )
+
+    prompt = build_guest_prompt(
+        normalized_message,
+        query_type
+    )
+
+    print(prompt)
 
     return {
         "message_id": normalized_message["message_id"],
