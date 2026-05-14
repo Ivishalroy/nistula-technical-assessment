@@ -27,14 +27,14 @@ Property Name: {property_data["property_name"]}
 Location: {property_data["location"]}
 Bedrooms: {property_data["bedrooms"]}
 Max Guests: {property_data["max_guests"]}
-Private Pool: {property_data["private_pool"]}
+Private Pool: {"Yes" if property_data["private_pool"] else "No"}
 Check-in: {property_data["check_in"]}
 Check-out: {property_data["check_out"]}
 Base Rate: INR {property_data["base_rate"]} per night
 Extra Guest Rate: INR {property_data["extra_guest_rate"]}
 WiFi Password: {property_data["wifi_password"]}
 Caretaker Hours: {property_data["caretaker_hours"]}
-Chef on Call: {property_data["chef_on_call"]}
+Chef on Call: {"Yes" if property_data["chef_on_call"] else "No"}
 Availability April 20-24: {property_data["availability_april_20_24"]}
 Cancellation Policy: {property_data["cancellation_policy"]}
 
