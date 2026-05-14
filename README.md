@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Nistula Guest Messaging System Banner">
+</p>
+
+<h1 align="center">
+Nistula Guest Messaging System
+</h1>
+
+<p align="center">
+AI-Assisted Hospitality Messaging Backend
+</p>
+
 # Nistula Guest Messaging Intelligence System
 
 > An AI-powered hospitality backend that classifies guest intent, drafts contextual responses, and routes messages through intelligent escalation workflows.
