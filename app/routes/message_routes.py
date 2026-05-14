@@ -21,33 +21,46 @@ router = APIRouter()
 )
 def receive_message(payload: IncomingMessage):
 
-    normalized_message = normalize_message(payload)
+    try:
 
-    query_type = classify_query(
-        normalized_message["message_text"]
-    )
+        normalized_message = normalize_message(payload)
 
-    prompt = build_guest_prompt(
-        normalized_message,
-        query_type
-    )
+        query_type = classify_query(
+            normalized_message["message_text"]
+        )
 
-    drafted_reply = generate_guest_reply(prompt)
+        prompt = build_guest_prompt(
+            normalized_message,
+            query_type
+        )
 
-    confidence_score = calculate_confidence_score(
-        query_type,
-        normalized_message["message_text"]
-    )
+        drafted_reply = generate_guest_reply(prompt)
 
-    action = determine_action(
-        confidence_score,
-        query_type
-    )
+        confidence_score = calculate_confidence_score(
+            query_type,
+            normalized_message["message_text"]
+        )
 
-    return {
-        "message_id": normalized_message["message_id"],
-        "query_type": query_type,
-        "drafted_reply": drafted_reply,
-        "confidence_score": confidence_score,
-        "action": action
-    }
+        action = determine_action(
+            confidence_score,
+            query_type,
+            normalized_message["message_text"]
+        )
+
+        return {
+            "message_id": normalized_message["message_id"],
+            "query_type": query_type,
+            "drafted_reply": drafted_reply,
+            "confidence_score": confidence_score,
+            "action": action
+        }
+
+    except Exception as error:
+
+        print("APPLICATION ERROR:")
+        print(error)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )

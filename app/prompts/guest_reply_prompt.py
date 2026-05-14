@@ -7,6 +7,11 @@ def build_guest_prompt(normalized_message, query_type):
 
     property_data = PROPERTY_CONTEXT.get(property_id)
 
+    if not property_data:
+        raise ValueError(
+            f"Property ID '{property_id}' not found."
+        )
+
     prompt = f"""
 You are an AI guest relations assistant for Nistula Villas.
 

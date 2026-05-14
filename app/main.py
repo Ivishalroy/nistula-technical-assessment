@@ -11,5 +11,7 @@ app.include_router(router)
 @app.get("/")
 def health_check():
     return {
-        "status": "API running"
+    "status": "running",
+    "service": "Nistula Guest Messaging API",
+    "version": "1.0.0"
     }

@@ -11,6 +11,14 @@ def calculate_confidence_score(
     if query_type != "general_enquiry":
         score += 0.20
 
+    # highly deterministic hospitality queries
+    if query_type in [
+        "pre_sales_availability",
+        "pre_sales_pricing",
+        "post_sales_checkin"
+    ]:
+        score += 0.10
+
     # strong keyword confidence
     if any(word in message_text for word in [
         "available",
@@ -23,8 +31,10 @@ def calculate_confidence_score(
         score += 0.15
 
     # multiple questions reduce certainty
-    if "?" in message_text and len(message_text.split("?")) > 2:
-        score -= 0.10
+    question_count = message_text.count("?")
+
+    if question_count >= 2:
+        score -= 0.35
 
     # complaints reduce confidence
     if query_type == "complaint":
