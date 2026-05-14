@@ -1,13 +1,11 @@
 # Nistula Guest Messaging System — Engineering Notes
 
 This document outlines the architectural decisions, tradeoffs, assumptions, and operational reasoning behind the implementation of the AI-powered guest messaging backend system.
-
 The goal of the system was not only to generate AI responses, but to design a backend workflow that is modular, reliable, explainable, and operationally practical for hospitality communication use cases.
 
 ## 1. Backend Architecture Decisions
 
 The system was designed using a modular service-oriented structure to separate responsibilities clearly across the application.
-
 Core backend layers include:
 
 - Request validation layer
@@ -99,8 +97,36 @@ the backend still returns a structured response with a safe fallback message.
 
 This prevents total API failure and improves system resilience.
 
-## 6. Database Schema Design
+## 6. Future Scaling Considerations
 
+If the platform scaled to production usage, future improvements could include:
+- asynchronous task queues
+- Redis caching
+- conversation memory
+- multilingual support
+- analytics dashboards
+- staff management systems
+- retrieval-augmented generation (RAG)
+- centralized logging and monitoring
+
+These features were intentionally excluded to keep the implementation aligned with the assessment scope.
+
+## 7. Tradeoffs and Assumptions
+
+Several intentional tradeoffs were made during implementation:
+
+- Rule-based classification was preferred over ML classification for simplicity and reliability.
+- AI-generated confidence scores were avoided in favor of deterministic scoring.
+- The property dataset was hardcoded for simplicity since persistent storage was outside scope.
+- Authentication and deployment infrastructure were excluded to maintain focus on backend workflow quality.
+- The schema design prioritized readability and operational clarity over enterprise-level complexity.
+
+These decisions were made to balance realism, maintainability, and assessment scope constraints.
+
+
+## 8. Written answers
+
+## Database Schema Design Decisions 
 The PostgreSQL schema was designed to model the operational workflow of a hospitality messaging platform.
 
 Core entities include:
@@ -117,123 +143,170 @@ The schema uses:
 - operational indexing
 
 The design intentionally avoids overengineering while still preserving normalization and scalability principles.
+# Lean Guest Profile Design
+The `guests` table was intentionally kept simple. Contact details such as phone numbers or emails were not added because the assessment focused mainly on unified guest identity and messaging workflows. In a larger production system, these would likely exist in a separate contact management table to support multiple communication channels for the same guest. For this implementation, `primary_channel` captures the essential requirement cleanly without unnecessary complexity.
 
-## 7. Future Scaling Considerations
+# Human-Readable Property IDs
+The `property_id` field uses readable values such as `villa-b1` instead of UUIDs. Since inbound webhook payloads already contain property identifiers in this format, using them directly simplifies backend lookups and avoids extra translation logic between external and internal identifiers. This keeps the API workflow simpler and easier to trace during debugging.
 
-If the platform scaled to production usage, future improvements could include:
-- asynchronous task queues
-- Redis caching
-- conversation memory
-- multilingual support
-- analytics dashboards
-- staff management systems
-- retrieval-augmented generation (RAG)
-- centralized logging and monitoring
+# Nullable Reservation Link in Conversations
+The `reservation_id` field in the `conversations` table was intentionally kept nullable. Not every guest interaction starts after a booking exists. Guests may first ask about pricing, availability, or amenities before making a reservation. Allowing conversations without a reservation link helps the schema model both pre-sales and post-booking communication realistically.
 
-These features were intentionally excluded to keep the implementation aligned with the assessment scope.
+# Separate Escalations Table
+Escalations were modeled in a separate table instead of being merged directly into the `messages` table. Most messages never escalate, so storing escalation-specific fields inside every message row would create unnecessary NULL values and reduce clarity. Separating escalations also better reflects the operational workflow, where escalations have their own lifecycle including assignment, review, and resolution.
 
-## 8. Tradeoffs and Assumptions
+# Confidence Score Validation
+The `confidence_score` field includes database-level validation to ensure values remain between 0 and 1. Although validation already exists in the backend application layer, adding constraints at the database level improves data integrity and prevents invalid records from being stored accidentally.
 
-Several intentional tradeoffs were made during implementation:
+### Hardest Design Decision
+The hardest design decision was determining whether escalation handling should exist directly inside the `messages` table or as a separate relational table. Initially, keeping everything inside `messages` seemed simpler because it reduced joins and relationships. However, after thinking through the operational workflow more carefully, it became clear that escalations behave differently from standard messages.
+A message represents a single communication event, while an escalation represents an ongoing operational process involving assignment, review, tracking, and resolution. Keeping escalation data separate made the schema cleaner, reduced unnecessary NULL fields for non-escalated messages, and allowed the escalation workflow to evolve independently from the core messaging system. Although this introduces an additional relationship, the resulting structure is more organized and scalable.
 
-- Rule-based classification was preferred over ML classification for simplicity and reliability.
-- AI-generated confidence scores were avoided in favor of deterministic scoring.
-- The property dataset was hardcoded for simplicity since persistent storage was outside scope.
-- Authentication and deployment infrastructure were excluded to maintain focus on backend workflow quality.
-- The schema design prioritized readability and operational clarity over enterprise-level complexity.
+## PART-3 THINKING QUESTION
+Operational Scenario Analysis — Critical Hospitality Escalation
+Scenario: A guest at Villa B1 sends a WhatsApp message at 3am:
 
-These decisions were made to balance realism, maintainability, and assessment scope constraints.
+> “There is no hot water and we have guests arriving for breakfast in 4 hours. This is unacceptable. I want a refund for tonight.”
+
+This is the third hot water complaint at Villa B1 in two months.
+
+---
+
+## A. Immediate Guest Response
+
+### AI-Generated Reply
+
+> “Hi, I’m very sorry you’re facing this issue, especially so late at night and with guests arriving in the morning. I’ve marked this as urgent and alerted the support team immediately so they can assist as quickly as possible. A team member will follow up with you shortly regarding both the hot water issue and your concerns about tonight’s stay.”
+
+### Reasoning
+
+The response is designed to:
+- acknowledge the guest’s frustration clearly
+- avoid sounding robotic or overly formal
+- communicate urgency without making unrealistic promises
+
+The AI does not promise a refund or repair timeline because those decisions should be handled by human staff. Instead, the message reassures the guest that the issue has been escalated and ownership has been transferred to the operations team.
+
+---
+
+## B. Full System Response
+
+The AI reply is only the first step. The platform should trigger additional operational workflows immediately.
+
+### 1. Classification and Escalation
+
+The system detects:
+- complaint language
+- urgency indicators
+- infrastructure failure signals
+
+This results in:
+- `query_type = complaint`
+- `severity = critical`
+- `action = escalate`
+
+The message bypasses normal review flows and is escalated directly to human staff.
+
+---
+
+### 2. Operational Notifications
+
+An escalation record is created in the database with:
+- property ID
+- complaint category
+- severity
+- timestamps
+- SLA deadline
+
+Notifications are then sent to:
+- on-call support staff
+- property caretaker
+- operations escalation channel
+
+Using parallel notifications reduces the risk of delayed response if one contact is unavailable.
+
+---
+
+### 3. Event Logging
+
+The system stores:
+- the original guest message
+- AI-generated reply
+- confidence score
+- escalation reason
+- timestamps
+- notification records
+
+This creates a complete operational audit trail that can later support:
+- refund decisions
+- internal review
+- incident analysis
+
+---
+
+### 4. SLA Monitoring
+
+A response timer begins once the escalation is created.
+
+If no staff member acknowledges the escalation within 30 minutes:
+- escalation priority increases
+- senior operations staff are alerted
+- the guest receives a follow-up reassurance message
+
+This prevents the guest from feeling ignored during a high-stress situation.
+
+---
+
+## C. Pattern Detection and Prevention
+
+Three complaints about the same issue at the same property within two months suggests a recurring operational problem rather than an isolated incident.
+
+### Recommended System Behavior
+
+The platform should track complaint frequency by:
+- property
+- complaint category
+- time window
+
+After repeated incidents:
+- the property should be flagged internally
+- operations staff should receive maintenance alerts
+- pre-arrival inspections should be triggered automatically before future guest check-ins
+
+---
+
+## Future Improvement Ideas
+
+Two useful future improvements would be:
+
+### 1. Property Health Monitoring
+
+A scheduled monitoring process could track recurring complaint categories across properties and automatically generate maintenance alerts when thresholds are exceeded.
+
+---
+
+### 2. Pre-Arrival Checklist Integration
+
+For flagged properties, the system could trigger an internal checklist before guest arrival to verify that previously reported issues have been resolved.
+
+---
+
+## Long-Term Direction
+
+The long-term goal is to treat guest complaints not only as support tickets, but also as operational signals.
+
+Instead of reacting to incidents individually, the platform should gradually evolve toward identifying infrastructure risks proactively and helping operations teams resolve issues before they impact future guests.
 
 ## Conclusion
 
 The implementation focuses on building a clean and operationally realistic AI-assisted guest messaging backend rather than maximizing feature complexity.
 
 The final system emphasizes:
-- modular architecture
-- explainable logic
+- modular backend architecture
+- explainable classification logic
 - operational escalation handling
-- resilience to AI failures
-- maintainable backend design
+- AI safety through confidence-based routing
+- maintainable database design
+- resilience to AI provider failures
 
 The overall goal was to design a backend system that feels practical, scalable, and production-aware while remaining appropriately scoped for the assessment.
-
----
-
-## 9. Operational Scenario Analysis — Critical Hospitality Escalation, Villa B1, 3am
-
-> **Scenario:** A guest at Villa B1 sends a WhatsApp message at 3am: *"There is no hot water and we have guests arriving for breakfast in 4 hours. This is unacceptable. I want a refund for tonight."* This is the third hot water complaint at Villa B1 in two months.
-
----
-
-### Question A — The Immediate Response
-
-**AI-generated message delivered to the guest:**
-
-> "Hi, I'm very sorry you're experiencing this — especially so late at night and with guests arriving in the morning. I've marked this as an urgent issue and alerted the on-call support team immediately so they can assist as quickly as possible. We understand how disruptive this is, and a team member will follow up with you shortly regarding both the hot water issue and your concerns about tonight's stay."
-
-**Reasoning:**
-
-The response is governed by three operational principles. First, it leads with genuine empathy rather than process language, acknowledging the specific pressure the guest is under — overnight timing and imminent breakfast guests — rather than issuing a generic apology. Second, it makes a credible, bounded commitment: the on-call team has been alerted and will follow up, without over-promising a repair timeline or refund value that the AI cannot guarantee and that only a human agent can authoritatively confirm. Third, the tone is calm and direct. At 3am, a distressed guest with social obligations does not need corporate hedging — they need to know that someone is now responsible and acting. The phrasing "a team member will follow up shortly" is intentional: it transfers ownership to a human without abandoning the guest in the meantime.
-
----
-
-### Question B — The Full System Response
-
-Sending the AI reply is the first action, not the last. The platform should immediately trigger a coordinated operational response across four parallel tracks.
-
-**1. Classification and Escalation Routing**
-
-The classifier detects compound signals: complaint markers (`"unacceptable"`, `"refund"`), urgency markers (`"4 hours"`, `"guests arriving"`), and an active infrastructure failure. This combination forces a `complaint` classification with `severity: critical`. The confidence score is suppressed to a threshold that prevents `auto_send` under any circumstances — the action engine routes directly to `escalate`, bypassing `agent_review`. No AI-generated reply, however well-constructed, is appropriate as a terminal response for a critical infrastructure failure at 3am.
-
-**2. Immediate Multi-Channel Notification**
-
-An escalation record is written to the `escalations` table with the following fields populated at the point of creation:
-
-- `property_id: villa-b1`
-- `complaint_category: maintenance_hot_water`
-- `severity: critical`
-- `triggered_at: <timestamp>`
-- `sla_deadline: triggered_at + 30 minutes`
-
-Notifications fire simultaneously to the on-call property manager (push and SMS), the registered villa caretaker, and the operations escalation channel. Parallel notification — rather than sequential — ensures that a single point of contact failure does not delay the response.
-
-**3. Comprehensive Event Logging**
-
-The full event is written to the `messages` and `escalations` tables, including: the original guest message, the classification outcome, the confidence score, the escalation trigger reason, the drafted AI reply, the delivery timestamp, and the notification dispatch record for each recipient. This creates a complete auditable trail that supports any subsequent refund decision, liability assessment, or guest compensation review.
-
-**4. 30-Minute SLA Enforcement and Breach Handling**
-
-A response timer begins at the point of escalation creation. If no human agent marks the escalation as acknowledged within 30 minutes, the system executes two actions automatically:
-
-- The escalation priority is elevated and a secondary alert fires to senior operations staff, explicitly flagged as `UNACKNOWLEDGED — SLA BREACH`.
-- A follow-up message is delivered to the guest: *"We haven't forgotten you — our duty manager has been alerted and will be in contact with you very shortly."*
-
-The guest-facing follow-up is operationally important. A guest who receives no further communication after the initial reply will reasonably assume the system has failed them. The automated follow-up maintains trust and demonstrates active monitoring without requiring human intervention at that precise moment.
-
-The system continues issuing escalation alerts at defined intervals until a human agent explicitly acknowledges the incident. Unacknowledged escalations are marked as `sla_breached: true` in the `escalations` table for post-incident operational review.
-
----
-
-### Question C — Pattern Detection and Prevention
-
-Three complaints of the same category at the same property within 60 days is not a streak of bad luck — it is a systemic infrastructure signal. The platform should treat it as such.
-
-**What the system should do with the pattern:**
-
-The `escalations` table, indexed on `property_id` and `complaint_category`, provides the data required for pattern analysis. The system should maintain a rolling complaint frequency count per property per category. After the second occurrence, a `property_flag` record should be written against Villa B1, notifying the operations team of a potential recurring issue. By the third occurrence, that flag should be automatically promoted to a formal `property_issue_report`, routed to the operations lead rather than the on-call agent, and marked as requiring a scheduled maintenance review before the next guest check-in.
-
-This distinction — between the on-call agent who handles the immediate incident and the operations team who owns the systemic problem — is architecturally significant. Routing all three complaints solely to the on-call channel ensures the pattern remains invisible at the operational level.
-
-**What to build to prevent a fourth complaint:**
-
-Two additions would close this loop permanently.
-
-The first is a **property health monitor**: a scheduled background job that aggregates complaint categories by property over a configurable rolling window (default: 60 days). When the same complaint category crosses a defined threshold for a given property — for example, two or more occurrences — the monitor automatically generates a maintenance work order and flags the property in the database as requiring pre-arrival inspection. This flag is checked at the booking confirmation stage: any new check-in scheduled for a flagged property triggers an internal staff notification requesting verification that the reported system has been inspected and confirmed operational before the guest arrives. The guest never experiences the failure because the system identified and actioned it operationally.
-
-The second is a **pre-arrival checklist integration**: a lightweight webhook triggered by booking confirmation events that, for flagged properties, dispatches a structured internal checklist to the assigned property staff. The checklist targets only the flagged complaint categories rather than a generic walk-through, making it fast to complete and directly relevant. This creates a mandatory human verification checkpoint between pattern detection and guest arrival with negligible architectural overhead.
-
-**Long-term architecture direction:**
-
-The underlying principle is that guest complaints are operational data, not merely support events. A platform that processes complaints in isolation — responding to each one without aggregating signal across incidents — is operationally reactive by design. The enhancements above shift the system toward proactive operational intelligence: complaints feed back into property management, maintenance scheduling, and check-in workflows, creating a closed loop between guest experience and infrastructure quality.
-
-As the platform scales, this pattern detection capability can be extended into a recurring complaint analytics layer, surfacing property-level infrastructure trends, tracking resolution timelines, and benchmarking repeat incident frequency across the portfolio. The long-term goal is for the system to identify infrastructure risks before they reach the guest — converting reactive support capacity into a predictive operational asset.
