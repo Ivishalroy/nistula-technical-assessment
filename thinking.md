@@ -1,4 +1,4 @@
-# Nistula Guest Messaging System — Engineering Notes
+# Nistula Guest Messaging System — System Design and Technical Decisions
 
 This document outlines the architectural decisions, tradeoffs, assumptions, and operational reasoning behind the implementation of the AI-powered guest messaging backend system.
 The goal of the system was not only to generate AI responses, but to design a backend workflow that is modular, reliable, explainable, and operationally practical for hospitality communication use cases.
