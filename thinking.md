@@ -143,22 +143,23 @@ The schema uses:
 - operational indexing
 
 The design intentionally avoids overengineering while still preserving normalization and scalability principles.
-# Lean Guest Profile Design
+
+### Lean Guest Profile Design
 The `guests` table was intentionally kept simple. Contact details such as phone numbers or emails were not added because the assessment focused mainly on unified guest identity and messaging workflows. In a larger production system, these would likely exist in a separate contact management table to support multiple communication channels for the same guest. For this implementation, `primary_channel` captures the essential requirement cleanly without unnecessary complexity.
 
-# Human-Readable Property IDs
+### Human-Readable Property IDs
 The `property_id` field uses readable values such as `villa-b1` instead of UUIDs. Since inbound webhook payloads already contain property identifiers in this format, using them directly simplifies backend lookups and avoids extra translation logic between external and internal identifiers. This keeps the API workflow simpler and easier to trace during debugging.
 
-# Nullable Reservation Link in Conversations
+### Nullable Reservation Link in Conversations
 The `reservation_id` field in the `conversations` table was intentionally kept nullable. Not every guest interaction starts after a booking exists. Guests may first ask about pricing, availability, or amenities before making a reservation. Allowing conversations without a reservation link helps the schema model both pre-sales and post-booking communication realistically.
 
-# Separate Escalations Table
+### Separate Escalations Table
 Escalations were modeled in a separate table instead of being merged directly into the `messages` table. Most messages never escalate, so storing escalation-specific fields inside every message row would create unnecessary NULL values and reduce clarity. Separating escalations also better reflects the operational workflow, where escalations have their own lifecycle including assignment, review, and resolution.
 
-# Confidence Score Validation
+### Confidence Score Validation
 The `confidence_score` field includes database-level validation to ensure values remain between 0 and 1. Although validation already exists in the backend application layer, adding constraints at the database level improves data integrity and prevents invalid records from being stored accidentally.
 
-### Hardest Design Decision
+# Hardest Design Decision
 The hardest design decision was determining whether escalation handling should exist directly inside the `messages` table or as a separate relational table. Initially, keeping everything inside `messages` seemed simpler because it reduced joins and relationships. However, after thinking through the operational workflow more carefully, it became clear that escalations behave differently from standard messages.
 A message represents a single communication event, while an escalation represents an ongoing operational process involving assignment, review, tracking, and resolution. Keeping escalation data separate made the schema cleaner, reduced unnecessary NULL fields for non-escalated messages, and allowed the escalation workflow to evolve independently from the core messaging system. Although this introduces an additional relationship, the resulting structure is more organized and scalable.
 
@@ -297,7 +298,7 @@ The long-term goal is to treat guest complaints not only as support tickets, but
 
 Instead of reacting to incidents individually, the platform should gradually evolve toward identifying infrastructure risks proactively and helping operations teams resolve issues before they impact future guests.
 
-## Conclusion
+# Conclusion
 
 The implementation focuses on building a clean and operationally realistic AI-assisted guest messaging backend rather than maximizing feature complexity.
 
