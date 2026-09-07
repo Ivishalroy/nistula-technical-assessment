@@ -14,8 +14,7 @@ AI-Assisted Hospitality Messaging Backend
 
 > An AI-powered hospitality backend that classifies guest intent, drafts contextual responses, and routes messages through intelligent escalation workflows.
 
-Built for the **Nistula Summer Technology Internship 2026** technical assessment.
-
+Built for the Nistula.
 ---
 
 ## Tech Stack
