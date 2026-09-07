@@ -256,5 +256,3 @@ The following resources were referenced for architecture patterns and implementa
 - [hookdeck webhook-skills](https://github.com/hookdeck/webhook-skills)
 
 ---
-
-*Nistula Summer Technology Internship 2026 — Technical Assessment Submission*
